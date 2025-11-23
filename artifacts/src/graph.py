@@ -29,6 +29,15 @@ def retrieve_node(state: AgentState):
     query = state["job_description"]
     retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 5})
     docs = retriever.invoke(query)
+
+    # --- ADD THIS DEBUGGING CODE ---
+    if not docs:
+        print("🛑 WARNING: Retriever returned an EMPTY list of documents!")
+    else:
+        print(f"✅ Retrieved {len(docs)} documents. First document content snippet:")
+        print(docs[0].page_content[:200]) # Print a snippet of the first document
+    # -------------------------------
+    
     return {"retrived_docs": docs}
 
 def analysis_node(state: AgentState):
