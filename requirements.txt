@@ -12,6 +12,7 @@ streamlit
 uvicorn
 gradio
 boto3
+pydantic
 requests
 huggingface_hub
 # Note: llama-cpp-python needs to be installed with specific flags on Mac (see instructions)
