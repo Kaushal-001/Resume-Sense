@@ -38,8 +38,8 @@ def analysis_node(state: AgentState):
     prompt = PromptTemplate(
         input_variables=["resume_text", "job_description", "retrived_docs"],
         template="""
-        Given the following resume and job description, along with relevant documents, 
-        analyze how well the resume matches the job description.
+        You are an expert AI Hiring Evaluator. Analyze the candidate's resume against the job description,
+        using the retrieved documents as supporting context.
 
         Resume:
         {resume_text}
@@ -50,12 +50,41 @@ def analysis_node(state: AgentState):
         Relevant Documents:
         {retrived_docs}
 
-        Provide a detailed analysis in text format. 
-        
-        CRUCIAL INSTRUCTION: Your final output MUST contain a single line beginning with 
-        'MATCH_SCORE_FINAL:' followed by the numerical score (0-100) ONLY, no percent sign.
+        Your output MUST follow this structure:
 
-        Example Line: MATCH_SCORE_FINAL: 85
+        ===========================
+        📌 **DETAILED ANALYSIS**
+        - Provide a clear, deep comparison between resume and JD.
+        - Discuss strengths, alignment areas, and gaps.
+
+        ===========================
+        📌 **ESSENTIAL_SKILLS_MISSING**
+        List the MOST IMPORTANT skills missing from the resume that the JD requires.
+        - Use short bullet points
+        - Include both technical + soft skills if relevant
+
+        ===========================
+        📌 **RECOMMENDATIONS_TO_IMPROVE**
+        Provide actionable steps to make the candidate a better fit.
+        Examples:
+        - Build projects in X
+        - Learn frameworks A, B, C
+        - Add measurable metrics to resume
+        - Strengthen domain knowledge (FinTech, Healthcare, RAG, etc.)
+
+        Be very specific and tailored.
+
+        ===========================
+        📌 **FINAL MATCH SCORE**
+        At the end of your output, on a NEW line, include:
+
+        MATCH_SCORE_FINAL: <score>
+
+        RULES:
+        - Score must be an integer 0–100
+        - Do NOT include a % sign
+        - The line MUST appear exactly once
+        - Example: MATCH_SCORE_FINAL: 87
         """
     )
     response = llm.generate([prompt.format(
