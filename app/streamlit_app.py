@@ -1,48 +1,17 @@
 import streamlit as st
-import sys
+import requests
 
-# Add src directory to path to import local modules
-import sys, os
+# The base URL for your FastAPI server
+# Since you run FastAPI on port 8000, this is the address:
+API_URL = "http://127.0.0.1:8000/match"
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(PROJECT_ROOT)
-
-# Import core LLMOps components
-from artifacts.src.models import load_llm 
-from artifacts.src.ingestion import create_vector_db
-from artifacts.src.graph import workflow # Import the StateGraph instance
-
-# --- 1. Initialize Resources (Cached for efficiency) ---
-@st.cache_resource
-def setup_pipeline():
-    """Initializes and caches the heavy components (LLM, Vector DB)"""
-    st.write("Initializing AI pipeline...")
-    
-    try:
-        # Load Vector DB
-        vectorstore = create_vector_db()
-        
-        # Load LLM
-        llm = load_llm()
-        
-        # Compile LangGraph (assuming graph nodes use the loaded vectorstore/llm)
-        app = workflow.compile()
-        
-        st.success("Pipeline Ready!")
-        return app
-    except Exception as e:
-        st.error(f"Failed to load pipeline resources: {e}")
-        st.stop()
-
-# --- 2. Streamlit UI ---
+# --- 1. Streamlit UI ---
 st.set_page_config(layout="wide")
-st.title("🤖 Resume & Job Matcher")
+st.title("🤖 Resume & Job Matcher (Client)")
+st.markdown("This app connects to a remote FastAPI AI service for analysis.")
 st.markdown("---")
 
-# Setup the pipeline once
-pipeline_app = setup_pipeline()
-
-# --- 3. Input Fields ---
+# --- 2. Input Fields ---
 col1, col2 = st.columns(2)
 
 with col1:
@@ -53,37 +22,51 @@ with col2:
 
 st.markdown("---")
 
-# --- 4. Analysis Button ---
-if st.button("Analyze Match", type="primary", use_container_width=True):
+# --- 3. Analysis Button & API Call ---
+if st.button("Analyze Match via FastAPI", type="primary", use_container_width=True):
     if not resume_input or not job_input:
         st.warning("Please provide both Resume and Job Description text.")
     else:
-        with st.spinner("Running AI Analysis..."):
-            # Prepare the input state
-            input_state = {
-                "resume_text": resume_input,
-                "job_description": job_input,
-            }
-
-            # Invoke the LangGraph pipeline
-            final_state = pipeline_app.invoke(input_state)
-
-        # --- 5. Display Results ---
-        analysis = final_state.get("analysis", "Analysis failed.")
-        score = final_state.get("match_score", "N/A")
-
-        st.subheader("Match Score")
+        # Data payload matching the MatchRequest Pydantic model in api.py
+        payload = {
+            "resume_text": resume_input,
+            "job_description": job_input,
+        }
         
-        # Display score as a large metric
-        if score.isdigit():
-            st.metric(label="Match Percentage", value=f"{score}%")
-        else:
-            st.info(f"Score: {score}")
+        with st.spinner("Sending data to FastAPI server for analysis..."):
+            try:
+                # Send the POST request to the API endpoint
+                response = requests.post(API_URL, json=payload)
+                
+                # Check for successful response
+                if response.status_code == 200:
+                    # The response body is a JSON object matching the MatchResponse model
+                    data = response.json()
+                    
+                    # --- 4. Display Results ---
+                    analysis = data.get("analysis", "Analysis failed.")
+                    score = data.get("match_score", "N/A")
 
-        st.subheader("Detailed Analysis")
-        st.markdown(analysis)
+                    st.subheader("Match Score")
+                    
+                    if score.isdigit():
+                        st.metric(label="Match Percentage", value=f"{score}%")
+                    else:
+                        st.info(f"Score: {score}")
 
-# --- 6. Running the App ---
+                    st.subheader("Detailed Analysis")
+                    st.markdown(analysis)
+                
+                else:
+                    st.error(f"API Error: Request failed with status code {response.status_code}.")
+                    st.json(response.json()) # Display the error details if available
+
+            except requests.exceptions.ConnectionError:
+                st.error("Connection Error: Could not reach the FastAPI server. Ensure 'api.py' is running.")
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {e}")
+
+# --- 5. Running the App ---
 if __name__ == "__main__":
     # Note: Streamlit runs the script from top to bottom on every user interaction!
     pass
