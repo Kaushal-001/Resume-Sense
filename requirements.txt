@@ -1,0 +1,16 @@
+langchain
+langgraph
+langchain-community
+langchain-huggingface
+transformers
+accelerate
+bitsandbytes
+faiss-cpu
+mlflow
+fastapi
+streamlit
+uvicorn
+gradio
+boto3
+huggingface_hub
+# Note: llama-cpp-python needs to be installed with specific flags on Mac (see instructions)
