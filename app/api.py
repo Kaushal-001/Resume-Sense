@@ -78,7 +78,6 @@ async def match_resume(request: MatchRequest):
     }
 
     # Run the LangGraph DAG
-    # NOTE: The graph internally uses your retrieve_node and analysis_node
     final_state = langgraph_app.invoke(input_state)
 
     # Extract results

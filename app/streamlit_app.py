@@ -7,7 +7,7 @@ API_URL = "http://127.0.0.1:8000/match"
 
 # --- UI CONFIG ---
 st.set_page_config(layout="wide")
-st.title("🤖 Resume–Job Match Analyzer (Client UI)")
+st.title("🤖 Resume–Sense")
 st.markdown("This Streamlit app connects to your FastAPI + LangGraph scoring engine.")
 st.markdown("---")
 
@@ -47,29 +47,38 @@ if st.button("🔍 Analyze via FastAPI", type="primary", use_container_width=Tru
                 if response.status_code == 200:
                     data = response.json()
 
-                    analysis = data.get("analysis", "")
+                    analysis_raw = data.get("analysis", "")
                     score = data.get("match_score", "N/A")
 
-                    # ========== Extract new sections from analysis ==========
-                    # These sections were added in your enhanced analysis_node
+                    # --- New Parsing Logic for Structured Output ---
+                    
+                    detailed_analysis = "N/A"
+                    missing_skills = "Not found."
+                    recommendations = "Not found."
+                    
+                    # 1. First, remove the final score line and the preceding delimiter
+                    analysis_content = re.sub(
+                        r'===========================\s*📌 \*\*FINAL MATCH SCORE\*\*[\s\S]*', 
+                        '', 
+                        analysis_raw
+                    ).strip()
 
-                    # --- Extract ESSENTIAL_SKILLS_MISSING ---
-                    skills_missing_match = re.search(
-                        r"ESSENTIAL_SKILLS_MISSING[\s\S]*?==========================",
-                        analysis
-                    )
-                    missing_skills = skills_missing_match.group(0) if skills_missing_match else "Not found."
+                    # 2. Split the remaining content using the section headers as delimiters
+                    # Regex captures the header string itself (e.g., 'DETAILED ANALYSIS')
+                    sections = re.split(r'===========================\s*📌 \*\*(.+?)\*\*', analysis_content)
+                    
+                    # Map the split sections (split results in [pre-header, header_title, content, header_title, content, ...])
+                    parsed_sections = {}
+                    for i in range(1, len(sections), 2):
+                        header_key = sections[i].strip()
+                        content = sections[i+1].strip()
+                        parsed_sections[header_key] = content
+                        
+                    # 3. Assign content to display variables
+                    detailed_analysis = parsed_sections.get('DETAILED ANALYSIS', 'Analysis failed to parse.')
+                    missing_skills = parsed_sections.get('ESSENTIAL_SKILLS_MISSING', 'Could not parse skills missing.')
+                    recommendations = parsed_sections.get('RECOMMENDATIONS_TO_IMPROVE', 'Could not parse recommendations.')
 
-                    # --- Extract RECOMMENDATIONS_TO_IMPROVE ---
-                    recommendations_match = re.search(
-                        r"RECOMMENDATIONS_TO_IMPROVE[\s\S]*?==========================",
-                        analysis
-                    )
-                    recommendations = recommendations_match.group(0) if recommendations_match else "Not found."
-
-                    # Clean the extracted block endings
-                    missing_skills = re.sub(r"==========================", "", missing_skills).strip()
-                    recommendations = re.sub(r"==========================", "", recommendations).strip()
 
                     # --- DISPLAY MATCH SCORE ---
                     st.subheader("🎯 Match Score")
@@ -77,19 +86,24 @@ if st.button("🔍 Analyze via FastAPI", type="primary", use_container_width=Tru
                         st.metric("Match Percentage", f"{score}%")
                     else:
                         st.info(f"Score: {score}")
-
-                    # --- DISPLAY DETAILED ANALYSIS ---
-                    st.subheader("📊 Detailed Analysis")
-                    st.markdown(analysis)
-
-                    # --- Display Extracted Sections ---
+                        
                     st.markdown("---")
 
-                    with st.expander("❗ Essential Skills Missing"):
-                        st.markdown(missing_skills)
+                    # --- DISPLAY STRUCTURED SECTIONS ---
+                    
+                    st.subheader("🔍 Detailed Analysis")
+                    st.markdown(detailed_analysis)
+                    
+                    st.subheader("❌ Essential Skills Missing")
+                    st.markdown(missing_skills)
+                    
+                    st.subheader("✅ Recommendations to Improve Fit")
+                    st.markdown(recommendations)
+                    
+                    st.markdown("---")
+                    with st.expander("View Full Raw LLM Output"):
+                        st.text(analysis_raw)
 
-                    with st.expander("🔧 Recommendations to Improve Fit"):
-                        st.markdown(recommendations)
 
                 else:
                     st.error(f"API Error: {response.status_code}")
@@ -98,8 +112,8 @@ if st.button("🔍 Analyze via FastAPI", type="primary", use_container_width=Tru
             except requests.exceptions.ConnectionError:
                 st.error("🚫 Could not connect to FastAPI. Ensure 'api.py' is running on port 8000.")
             except Exception as e:
-                st.error(f"Unexpected Error: {e}")
-
+                st.error(f"Unexpected Error during analysis: {e}")
+                
 # Required for Streamlit
 if __name__ == "__main__":
     pass
