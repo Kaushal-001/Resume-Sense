@@ -7,8 +7,7 @@ API_URL = "http://127.0.0.1:8000/match"
 
 # --- UI CONFIG ---
 st.set_page_config(layout="wide")
-st.title("🤖 Resume–Sense")
-st.markdown("This Streamlit app connects to your FastAPI + LangGraph scoring engine.")
+st.title("🤖 Resume-Sense")
 st.markdown("---")
 
 # --- INPUT FIELDS ---
@@ -50,35 +49,38 @@ if st.button("🔍 Analyze via FastAPI", type="primary", use_container_width=Tru
                     analysis_raw = data.get("analysis", "")
                     score = data.get("match_score", "N/A")
 
-                    # --- New Parsing Logic for Structured Output ---
-                    
-                    detailed_analysis = "N/A"
-                    missing_skills = "Not found."
-                    recommendations = "Not found."
-                    
-                    # 1. First, remove the final score line and the preceding delimiter
+                    # =========================================================
+                    # 💥 UPDATED ROBUST PARSING LOGIC 💥
+                    # =========================================================
+                    detailed_analysis = "Analysis failed to parse."
+                    missing_skills = "Could not parse skills missing."
+                    recommendations = "Could not parse recommendations."
+
+                    # 1. Remove the final score line and the preceding delimiter
                     analysis_content = re.sub(
                         r'===========================\s*📌 \*\*FINAL MATCH SCORE\*\*[\s\S]*', 
                         '', 
                         analysis_raw
                     ).strip()
 
-                    # 2. Split the remaining content using the section headers as delimiters
-                    # Regex captures the header string itself (e.g., 'DETAILED ANALYSIS')
+                    # 2. Split the remaining content using the structure: DELIMITER + 📌 **HEADER**
+                    # The regex captures the header string itself (e.g., 'DETAILED ANALYSIS')
                     sections = re.split(r'===========================\s*📌 \*\*(.+?)\*\*', analysis_content)
                     
-                    # Map the split sections (split results in [pre-header, header_title, content, header_title, content, ...])
+                    # 3. Map the split sections: sections[0] is pre-header text (empty/junk), 
+                    # sections[1] is header title, sections[2] is content, etc.
                     parsed_sections = {}
                     for i in range(1, len(sections), 2):
                         header_key = sections[i].strip()
                         content = sections[i+1].strip()
                         parsed_sections[header_key] = content
                         
-                    # 3. Assign content to display variables
-                    detailed_analysis = parsed_sections.get('DETAILED ANALYSIS', 'Analysis failed to parse.')
-                    missing_skills = parsed_sections.get('ESSENTIAL_SKILLS_MISSING', 'Could not parse skills missing.')
-                    recommendations = parsed_sections.get('RECOMMENDATIONS_TO_IMPROVE', 'Could not parse recommendations.')
-
+                    # 4. Assign content to display variables
+                    detailed_analysis = parsed_sections.get('DETAILED ANALYSIS', detailed_analysis)
+                    missing_skills = parsed_sections.get('ESSENTIAL_SKILLS_MISSING', missing_skills)
+                    recommendations = parsed_sections.get('RECOMMENDATIONS_TO_IMPROVE', recommendations)
+                    # =========================================================
+                    
 
                     # --- DISPLAY MATCH SCORE ---
                     st.subheader("🎯 Match Score")
@@ -101,7 +103,7 @@ if st.button("🔍 Analyze via FastAPI", type="primary", use_container_width=Tru
                     st.markdown(recommendations)
                     
                     st.markdown("---")
-                    with st.expander("View Full Raw LLM Output"):
+                    with st.expander("View Full Raw LLM Output (for debugging)"):
                         st.text(analysis_raw)
 
 
